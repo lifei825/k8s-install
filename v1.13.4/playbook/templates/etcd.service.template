@@ -1,0 +1,36 @@
+[Unit]
+Description=Etcd Server
+After=network.target
+After=network-online.target
+Wants=network-online.target
+Documentation=https://github.com/coreos
+
+[Service]
+User=root
+Type=notify
+WorkingDirectory={{WORK_DIR}}/etcd/
+ExecStart={{k8s_bin_path}}/etcd \
+  --data-dir={{WORK_DIR}}/etcd/member/data \
+  --wal-dir={{WORK_DIR}}/etcd/member/wal \
+  --name={{node_name}} \
+  --cert-file={{etcd_cert_path}}/etcd.pem \
+  --key-file={{etcd_cert_path}}/etcd-key.pem \
+  --trusted-ca-file={{k8s_cert_path}}/ca.pem \
+  --peer-cert-file={{etcd_cert_path}}/etcd.pem \
+  --peer-key-file={{etcd_cert_path}}/etcd-key.pem \
+  --peer-trusted-ca-file={{k8s_cert_path}}/ca.pem \
+  --peer-client-cert-auth \
+  --client-cert-auth \
+  --listen-peer-urls=https://{{IP}}:2380 \
+  --initial-advertise-peer-urls=https://{{IP}}:2380 \
+  --listen-client-urls=https://{{IP}}:2379,http://127.0.0.1:2379 \
+  --advertise-client-urls=https://{{IP}}:2379 \
+  --initial-cluster-token=etcd-cluster-0 \
+  --initial-cluster=master1=https://{{master1}}:2380,master2=https://{{master2}}:2380,master3=https://{{master3}}:2380 \
+  --initial-cluster-state=new
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

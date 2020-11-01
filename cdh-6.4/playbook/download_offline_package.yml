@@ -1,0 +1,27 @@
+---
+- hosts: master
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: download - http://download.oracle.com/otn-pub/java/jdk/8u181-b13/96a7b8442fe848ef90c96a2fad6ed6d1
+      debug: msg="需要手动下载"
+
+#    - name: download - http://archive.cloudera.com/cm5/cm/5/cloudera-manager-centos7-cm5.14.4_x86_64.tar.gz
+#      shell: "cd {{offline_pkg_path}} && \
+#              wget http://archive.cloudera.com/cm5/cm/5/cloudera-manager-centos7-cm5.14.4_x86_64.tar.gz"
+
+    - name: download - cdh pkg
+      uri: url="{{item.url}}" method=GET dest="{{offline_pkg_path}}"
+      with_items:
+        - {url: "http://archive.cloudera.com/cm5/redhat/6/x86_64/cm/5.14.4/RPMS/x86_64/cloudera-manager-agent-5.14.4-1.cm5144.p0.3.el6.x86_64.rpm"}
+        - {url: "http://archive.cloudera.com/cm5/redhat/6/x86_64/cm/5.14.4/RPMS/x86_64/cloudera-manager-daemons-5.14.4-1.cm5144.p0.3.el6.x86_64.rpm"}
+        - {url: "http://archive.cloudera.com/cm5/redhat/6/x86_64/cm/5.14.4/RPMS/x86_64/cloudera-manager-server-5.14.4-1.cm5144.p0.3.el6.x86_64.rpm"}
+        - {url: "http://archive.cloudera.com/cm5/redhat/6/x86_64/cm/5.14.4/RPMS/x86_64/cloudera-manager-server-db-2-5.14.4-1.cm5144.p0.3.el6.x86_64.rpm"}
+        - {url: "http://archive.cloudera.com/cm5/redhat/6/x86_64/cm/5.14.4/RPMS/x86_64/enterprise-debuginfo-5.14.4-1.cm5144.p0.3.el6.x86_64.rpm"}
+        - {url: "http://archive.cloudera.com/cm5/redhat/6/x86_64/cm/5.14.4/RPMS/x86_64/oracle-j2sdk1.7-1.7.0+update67-1.x86_64.rpm"}
+        - {url: "http://archive.cloudera.com/cm5/redhat/6/x86_64/cm/5.1.4/RPMS/x86_64/jdk-6u31-linux-amd64.rpm"}
+        - {url: "http://archive.cloudera.com/cdh5/parcels/5.14.4/CDH-5.14.4-1.cdh5.14.4.p0.3-el6.parcel.sha1"}
+        - {url: "http://archive.cloudera.com/cdh5/parcels/5.14.4/CDH-5.14.4-1.cdh5.14.4.p0.3-el6.parcel"}
+        - {url: "http://archive.cloudera.com/cdh5/parcels/5.14.4/manifest.json"}
+        - {url: "https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.12.tar.gz"}
+        - {url: "http://archive.cloudera.com/cm5/installer/5.14.4/cloudera-manager-installer.bin"}

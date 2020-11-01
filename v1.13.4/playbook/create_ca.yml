@@ -1,0 +1,51 @@
+---
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: Install cfssl
+      shell: "cd {{k8s_bin_path}} && \
+              [ -f cfssl ] || \
+              (wget https://pkg.cfssl.org/R1.2/cfssl_linux-amd64 && \
+              mv cfssl_linux-amd64 cfssl); \
+              chmod +x cfssl"
+
+    - name: Install cfssljson
+      shell: "cd {{k8s_bin_path}} && \
+              [ -f cfssljson ] || \
+              (wget https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64 && \
+              mv cfssljson_linux-amd64 cfssljson)"
+
+    - name: Install cfssl-certinfo
+      shell: "cd {{k8s_bin_path}} && \
+              [ -f cfssl-certinfo ] || \
+              (wget https://pkg.cfssl.org/R1.2/cfssl-certinfo_linux-amd64 && \
+              mv cfssl-certinfo_linux-amd64 cfssl-certinfo); \
+              chmod +x {{k8s_bin_path}}/* "
+
+    - name: Create CA
+      script: create_ca.sh
+
+    - name: Get pem
+      fetch: src=/tmp/ca/ca.tar.gz dest=/tmp/pem/ flat=yes
+
+- hosts: nodes
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: Copy ca.tar.gz
+      copy: src=/tmp/pem/ca.tar.gz dest={{k8s_cert_path}} mode=0644
+
+    - name: Get ca pem
+      shell: "cd {{k8s_cert_path}};\
+              tar zxf ca.tar.gz; \
+              rm -f ca.tar.gz"
+
+    - name: copy cfssl bin
+      copy: src={{k8s_bin_path}}/{{item.cmd}} dest={{k8s_bin_path}}/ mode=0755
+      with_items:
+          - {cmd: "cfssl"}
+          - {cmd: "cfssljson"}
+          - {cmd: "cfssl-certinfo"}
+
+

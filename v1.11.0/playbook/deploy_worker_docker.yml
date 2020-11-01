@@ -1,0 +1,29 @@
+---
+- hosts: localhost
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Download docker: https://download.docker.com/linux/static/stable/x86_64/"
+      shell: "cd {{WORK_DIR}}; \
+              [ -f {{WORK_DIR}}/docker_binary.tgz ] || \
+              wget {{docker_binary_download}} -O docker_binary.tgz; \
+              tar xf docker_binary.tgz"
+
+- hosts: nodes
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: rsync docker cmd
+      synchronize: src="{{WORK_DIR}}/docker/" dest="{{k8s_bin_path}}"
+
+    - name: copy docker-daemon.json
+      template: src=docker-daemon.json dest=/etc/docker/daemon.json
+
+    - name: copy docker.service
+      template: src=docker.service.template dest=/etc/systemd/system/docker.service
+
+    - name: start docker server
+      systemd: name=docker daemon_reload=yes state=restarted enabled=yes
+
+#    - name: "开启 docker0 网桥下虚拟网卡的 hairpin 模式"
+#      shell: "for intf in /sys/devices/virtual/net/docker0/brif/*; do echo 1 > $intf/hairpin_mode; done"

@@ -1,0 +1,37 @@
+---
+- hosts: nodes
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: stop server
+      script: systemctl.sh stop
+
+    - name: rm -rf cert
+      shell: rm -rf {{k8s_cert_path}} {{etcd_cert_path}} {{flannel_cert_path}} /tmp/ca /tmp/pem {{WORK_DIR}}/etcd
+
+    - name: rm -f yaml
+      shell: rm -f {{WORK_DIR}}/k8s/*.yaml
+
+    - name: rm -rf node
+      shell: "mount | grep '/var/lib/kubelet'| awk '{print $3}'|xargs sudo umount; \
+      rm -rf {{k8s_node_path}} {{k8s_log_path}} ~/.kube/* /var/lib/kubelet /var/lib/kube-proxy /var/lib/docker;exit 0"
+
+    - name: rm network
+      shell: ip link del flannel.1;ip link del docker0;exit 0
+
+    - name: rm /etc/systemd/system/config
+      shell: "cd /etc/systemd/system/; rm -f etcd.service;"
+
+- hosts: etcd
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: rm -rf etcd
+      shell: rm -rf {{WORK_DIR}}/etcd/member*
+
+- hosts: master
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: clear master dir
+      shell: rm -rf /var/run/kubernetes;

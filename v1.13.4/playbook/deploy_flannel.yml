@@ -1,0 +1,78 @@
+---
+- hosts: 127.0.0.1
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Download flannel: https://github.com/coreos/flannel/releases/download/v0.10.0/flannel-v0.10.0-linux-amd64.tar.gz"
+      shell: "cd /tmp/ ; \
+              [ -f flannel-v0.10.0-linux-amd64.tar.gz ] || \
+              wget https://github.com/coreos/flannel/releases/download/v0.10.0/flannel-v0.10.0-linux-amd64.tar.gz ; \
+              tar zxf flannel-v0.10.0-linux-amd64.tar.gz"
+
+- hosts: all
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Distribute flanneld"
+      copy: src="/tmp/flanneld" dest="{{k8s_bin_path}}" mode=0755
+
+    - name: "Distribute mk-docker-opts.sh"
+      copy: src="/tmp/mk-docker-opts.sh" dest="{{k8s_bin_path}}" mode=0755
+
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Create flannel cert"
+      script: create_flannel_cert.sh {{k8s_cert_path}}
+
+    - name: "Get flannel cert"
+      fetch: src={{k8s_cert_path}}/flannel-cert.tar.gz dest=/tmp/ flat=yes
+
+- hosts: all
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Copy flannel cert"
+      copy: src=/tmp/flannel-cert.tar.gz dest={{flannel_cert_path}}
+
+    - name: "tar zxf flannel-cert.tar.gz"
+      shell: "cd {{flannel_cert_path}} ; \
+              tar zxf flannel-cert.tar.gz ; \
+              rm -f flannel-cert.tar.gz ; \
+              rm -f {{k8s_cert_path}}/flannel* "
+
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "向 etcd 写入集群 Pod 网段信息"
+      shell: "etcdctl \
+              --endpoints=${ETCD_ENDPOINTS} \
+              --ca-file={{k8s_cert_path}}/ca.pem \
+              --cert-file={{flannel_cert_path}}/flanneld.pem \
+              --key-file={{flannel_cert_path}}/flanneld-key.pem \
+              set {{FLANNEL_ETCD_PREFIX}}/config '{\"Network\":\"'{{CLUSTER_CIDR}}'\", \"SubnetLen\": 24, \"Backend\": {\"Type\": \"vxlan\"}}'"
+
+- hosts: nodes
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Create flannel systemd unit"
+      template: src=flanneld.service.template dest=/etc/systemd/system/flanneld.service
+
+    - name: "Start flanneld service"
+      systemd:
+        name: flanneld
+        daemon_reload: yes
+        state: restarted
+        enabled: yes
+
+    - name: "Ping flannel ip"
+      shell: "ifconfig flannel.1 | awk '/inet /{print$2}' "
+      register: rs
+
+    - debug: msg="flannel.1:{{rs.stdout_lines}}"
+
+
+

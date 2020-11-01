@@ -1,0 +1,27 @@
+[Unit]
+Description=Kubernetes Kubelet
+Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+After=docker.service
+Requires=docker.service
+
+[Service]
+WorkingDirectory=/var/lib/kubelet
+ExecStart={{k8s_bin_path}}/kubelet \
+  --authentication-token-webhook=true \
+  --authorization-mode=Webhook \
+  --bootstrap-kubeconfig={{k8s_node_path}}/kubelet-bootstrap.kubeconfig \
+  --cert-dir={{k8s_cert_path}} \
+  --kubeconfig={{k8s_node_path}}/kubelet.kubeconfig \
+  --config={{k8s_node_path}}/kubelet.config.json \
+  --hostname-override={{IP}} \
+  --pod-infra-container-image=registry.access.redhat.com/rhel7/pod-infrastructure:latest \
+  --allow-privileged=true \
+  --alsologtostderr=true \
+  --logtostderr=false \
+  --log-dir={{k8s_log_path}} \
+  --v=2
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

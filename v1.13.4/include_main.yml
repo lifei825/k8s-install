@@ -1,0 +1,61 @@
+---
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+  - name: add authoried_keys
+    shell: "cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys; \
+            (grep ANSIBLE_HOST_KEY_CHECKING=False /etc/profile || \
+            echo export ANSIBLE_HOST_KEY_CHECKING=False >> /etc/profile)"
+    when: is_aliyun != "yes"
+
+- hosts: all
+  gather_facts: no
+  remote_user: root
+  name: System initialization
+  pre_tasks:
+    - shell: "echo 'Start system initialization: {{master1}}'"
+      register: pre_result
+
+    - debug:
+        msg: "{{pre_result.stdout}}"
+  roles:
+    - init
+  post_tasks:
+    - shell: echo 'End system initialization'
+      register: post_rs
+    - debug:
+        msg: "123 {{post_rs.stdout_lines}}"
+
+- import_playbook: "playbook/create_ca.yml"
+
+- import_playbook: "playbook/deploy_kubectl.yml"
+
+- import_playbook: "playbook/deploy_etcd.yml"
+
+- import_playbook: "playbook/deploy_flannel.yml"
+
+- import_playbook: "playbook/deploy_master.yml"
+
+- import_playbook: "playbook/deploy_kube_apiserver.yml"
+
+- import_playbook: "playbook/deploy_kube_controller_manager.yml"
+
+- import_playbook: "playbook/deploy_kube_scheduler.yml"
+
+- import_playbook: "playbook/deploy_worker_docker.yml"
+
+- import_playbook: "playbook/deploy_worker_kubelet.yml"
+
+- import_playbook: "playbook/deploy_worker_kube-proxy.yml"
+
+- import_playbook: "playbook/verify_cluster_health.yml"
+
+- import_playbook: "playbook/deploy-plug-in.yml"
+
+#- hosts: master
+#  gather_facts: no
+#  remote_user: root
+#  name: Deploy kubectl
+#  roles:
+#    - deploy_kubectl.yml

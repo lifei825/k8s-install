@@ -1,0 +1,19 @@
+[Unit]
+Description=Kubernetes Scheduler
+Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+
+[Service]
+ExecStart={{k8s_bin_path}}/kube-scheduler \
+  --address=127.0.0.1 \
+  --kubeconfig={{WORK_DIR}}/k8s/kube-scheduler.kubeconfig \
+  --leader-elect=true \
+  --alsologtostderr=true \
+  --logtostderr=false \
+  --log-dir={{k8s_log_path}} \
+  --v=2
+Restart=on-failure
+RestartSec=5
+User=root
+
+[Install]
+WantedBy=multi-user.target

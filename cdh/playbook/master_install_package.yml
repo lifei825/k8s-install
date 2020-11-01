@@ -1,0 +1,48 @@
+---
+- hosts: master
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: copy cdh
+      copy: src={{offline_pkg_path}}/{{item.name}} dest={{work_dir}}/ mode=0644
+      with_items:
+        - {name: "jdk-7u80-linux-x64.rpm"}
+        - {name: "enterprise-debuginfo-5.14.4-1.cm5144.p0.3.el7.x86_64.rpm"}
+        - {name: "cloudera-manager-agent-5.14.4-1.cm5144.p0.3.el7.x86_64.rpm"}
+        - {name: "cloudera-manager-server-5.14.4-1.cm5144.p0.3.el7.x86_64.rpm"}
+        - {name: "cloudera-manager-server-db-2-5.14.4-1.cm5144.p0.3.el7.x86_64.rpm"}
+        - {name: "cloudera-manager-daemons-5.14.4-1.cm5144.p0.3.el7.x86_64.rpm"}
+        - {name: "mysql-connector-java-8.0.12.tar.gz"}
+        - {name: "oracle-j2sdk1.7-1.7.0+update67-1.x86_64.rpm"}
+
+    - name: copy parcel & installer-bin
+      copy: src={{offline_pkg_path}}/{{item.name}} dest={{item.dest}} mode=0644
+      with_items:
+        - {name: "manifest.json", dest: "{{parcel_repo_path}}"}
+        - {name: "CDH-5.14.4-1.cdh5.14.4.p0.3-el7.parcel.sha1", dest: "{{parcel_repo_path}}/CDH-5.14.4-1.cdh5.14.4.p0.3-el7.parcel.sha"}
+        - {name: "CDH-5.14.4-1.cdh5.14.4.p0.3-el7.parcel", dest: "{{parcel_repo_path}}"}
+        - {name: "cloudera-manager-installer.bin", dest: "{{cdh_bin_path}}"}
+
+    - name: chown cloudera-scm.cloudera-scm  /opt  -R
+      file: path=/opt owner=cloudera-scm group=cloudera-scm recurse=yes
+
+    - name: chmod +x cloudera-manager-installer.bin
+      file: path={{cdh_bin_path}}/cloudera-manager-installer.bin mode=0755
+
+    - name: yum install *.rpm
+      shell: "cd {{work_dir}} ; yum localinstall --nogpgcheck *.rpm -y && rm -f /etc/cloudera-scm-server/db.properties"
+
+    - name: change cloudera-scm-agent/config.ini
+      template: src=config.ini dest=/etc/cloudera-scm-agent/ mode=0644
+
+#    - name: restart cloudera-scm-server
+#      systemd: name=cloudera-scm-server state=restarted
+
+    - name: restart cloudera-scm-agent
+      systemd: name=cloudera-scm-agent state=restarted
+
+#- hosts: master
+#  gather_facts: no
+#  remote_user: root
+#  tasks:
+

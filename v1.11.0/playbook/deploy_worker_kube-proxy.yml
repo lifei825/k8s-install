@@ -1,0 +1,35 @@
+---
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "创建 kube-proxy 证书 & 创建 kubeconfig 文件"
+      script: create_kube-proxy_cert.sh {{k8s_cert_path}} {{MASTER_VIP}}
+
+    - name: "Get kube-proxy cert"
+      fetch: src={{k8s_cert_path}}/kube-proxy-cert.tar.gz dest=/tmp/ flat=yes
+
+- hosts: nodes
+  gather_facts: yes
+  remote_user: root
+  vars:
+    IP: "{{ ansible_eth0['ipv4']['address'] }}"
+    hostname: "{{ ansible_hostname }}"
+  tasks:
+    - name: "分发 kube-proxy cert & kubeconfig 文件"
+      copy: src=/tmp/kube-proxy-cert.tar.gz dest={{k8s_cert_path}}/
+
+    - name: "tar zxf kube-proxy-cert.tar.gz"
+      shell: "cd {{k8s_cert_path}}; \
+              tar zxf kube-proxy-cert.tar.gz; \
+              mv kube-proxy.kubeconfig {{WORK_DIR}}/k8s/; \
+              rm -f kube-proxy-cert.tar.gz"
+
+    - name: "创建 kube-proxy 配置文件"
+      template: src=kube-proxy.config.yaml.template dest={{WORK_DIR}}/k8s/kube-proxy.config.yaml
+
+    - name: "创建和分发 kube-proxy systemd unit 文件"
+      template: src=kube-proxy.service.template dest=/etc/systemd/system/kube-proxy.service
+
+    - name: "启动 kube-proxy 服务"
+      systemd: name=kube-proxy daemon_reload=yes state=restarted enabled=yes

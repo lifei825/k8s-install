@@ -1,0 +1,27 @@
+---
+- hosts: nodes
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Download & distribute kubectl, https://dl.k8s.io/{{k8s_version}}/kubernetes-server-linux-amd64.tar.gz"
+      copy: src={{k8s_binaries_path}}/kubectl dest={{k8s_bin_path}} mode=0755
+
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: Create admin cert
+      script: create_admin_cert.sh {{k8s_cert_path}} {{MASTER_VIP}}
+
+    - name: Get admin kubectl.kubeconfig
+      fetch: src={{k8s_cert_path}}/kubectl.kubeconfig dest=/tmp/kubectl.kubeconfig flat=yes
+
+- hosts: nodes
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: Mkdir ~/.kube/
+      file: path=~/.kube state=directory mode=0755
+
+    - name: Copy kubectl.kubeconfig
+      copy: src=/tmp/kubectl.kubeconfig dest=~/.kube/config mode=0644

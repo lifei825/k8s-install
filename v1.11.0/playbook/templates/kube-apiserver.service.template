@@ -1,0 +1,56 @@
+[Unit]
+Description=Kubernetes API Server
+Documentation=https://github.com/GoogleCloudPlatform/kubernetes
+After=network.target
+
+# --requestheader-allowed-names=""
+[Service]
+ExecStart={{k8s_bin_path}}/kube-apiserver \
+  --requestheader-client-ca-file={{k8s_cert_path}}/ca.pem \
+  --requestheader-extra-headers-prefix=X-Remote-Extra- \
+  --requestheader-group-headers=X-Remote-Group \
+  --requestheader-username-headers=X-Remote-User \
+  --proxy-client-cert-file={{k8s_cert_path}}/metrics-server.pem \
+  --proxy-client-key-file={{k8s_cert_path}}/metrics-server-key.pem \
+  --runtime-config=api/all=true \
+  --enable-admission-plugins=Initializers,NamespaceLifecycle,NodeRestriction,LimitRanger,ServiceAccount,DefaultStorageClass,ResourceQuota \
+  --anonymous-auth=false \
+  --experimental-encryption-provider-config={{WORK_DIR}}/k8s/encryption-config.yaml \
+  --advertise-address={{IP}} \
+  --bind-address={{IP}} \
+  --insecure-port=0 \
+  --authorization-mode=Node,RBAC \
+  --enable-aggregator-routing=true \
+  --enable-bootstrap-token-auth \
+  --service-cluster-ip-range={{SERVICE_CIDR}} \
+  --service-node-port-range={{NODE_PORT_RANGE}} \
+  --tls-cert-file={{k8s_cert_path}}/kubernetes.pem \
+  --tls-private-key-file={{k8s_cert_path}}/kubernetes-key.pem \
+  --client-ca-file={{k8s_cert_path}}/ca.pem \
+  --kubelet-client-certificate={{k8s_cert_path}}/kubernetes.pem \
+  --kubelet-client-key={{k8s_cert_path}}/kubernetes-key.pem \
+  --service-account-key-file={{k8s_cert_path}}/ca-key.pem \
+  --etcd-cafile={{k8s_cert_path}}/ca.pem \
+  --etcd-certfile={{k8s_cert_path}}/kubernetes.pem \
+  --etcd-keyfile={{k8s_cert_path}}/kubernetes-key.pem \
+  --etcd-servers=https://{{master1}}:2379,https://{{master2}}:2379,https://{{master3}}:2379 \
+  --enable-swagger-ui=true \
+  --allow-privileged=true \
+  --apiserver-count=3 \
+  --audit-log-maxage=30 \
+  --audit-log-maxbackup=3 \
+  --audit-log-maxsize=100 \
+  --audit-log-path=/var/log/kube-apiserver-audit.log \
+  --event-ttl=1h \
+  --alsologtostderr=true \
+  --logtostderr=false \
+  --log-dir={{k8s_log_path}} \
+  --v=2
+Restart=on-failure
+RestartSec=5
+Type=notify
+User=root
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

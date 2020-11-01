@@ -1,0 +1,27 @@
+---
+- hosts: node
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: copy cdh
+      copy: src={{offline_pkg_path}}/{{item.name}} dest={{work_dir}}/ mode=0644
+      with_items:
+        - {name: "jdk-7u80-linux-x64.rpm"}
+        - {name: "cloudera-manager-agent-5.14.4-1.cm5144.p0.3.el7.x86_64.rpm"}
+        - {name: "cloudera-manager-daemons-5.14.4-1.cm5144.p0.3.el7.x86_64.rpm"}
+        - {name: "oracle-j2sdk1.7-1.7.0+update67-1.x86_64.rpm"}
+
+    - name: yum install *.rpm
+      shell: "cd {{work_dir}} ; yum localinstall --nogpgcheck *.rpm -y"
+
+    - name: change cloudera-scm-agent/config.ini
+      template: src=config.ini dest=/etc/cloudera-scm-agent/ mode=0644
+
+    - name: restart cloudera-scm-agent
+      systemd: name=cloudera-scm-agent state=restarted
+
+#- hosts: master
+#  gather_facts: no
+#  remote_user: root
+#  tasks:
+

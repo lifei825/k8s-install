@@ -1,0 +1,10 @@
+---
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "验证集群功能"
+      script: verify_cluster_health.sh
+      register: rs
+
+    - debug: msg="{{rs.stdout_lines}}"

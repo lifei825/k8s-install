@@ -1,0 +1,10 @@
+# 2018 TurboData, Inc. All rights reserved.
+---
+# 400M的包 还要翻墙下载
+#- import_playbook: "{{k8s_version}}/kube_download.yml"
+
+#- import_playbook: "{{k8s_version}}/playbook/deploy_flannel.yml"
+
+# ansible-playbook -i k8s_cluster.host main.yml --extra-vars "k8s_version=v1.11.0"
+- import_playbook: "{{k8s_version}}/include_main.yml"
+

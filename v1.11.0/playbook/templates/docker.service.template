@@ -1,0 +1,20 @@
+[Unit]
+Description=Docker Application Container Engine
+Documentation=http://docs.docker.io
+
+[Service]
+Environment="PATH={{k8s_bin_path}}:/bin:/sbin:/usr/bin:/usr/sbin"
+Environment="HTTP_PROXY=socks5://127.0.0.1:1080/" "HTTPS_PROXY=socks5://127.0.0.1:1080/"
+EnvironmentFile=-/run/flannel/docker
+ExecStart={{k8s_bin_path}}/dockerd --log-level=error $DOCKER_NETWORK_OPTIONS
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+Delegate=yes
+KillMode=process
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,88 @@
+---
+- name: "If aliyun use proxy (每台执行 ssh -qTfnN -D 1080 root@{{master_ip}})"
+  shell: "grep 'proxy=socks5://127.0.0.1:1080' /etc/yum.conf || \
+          echo 'proxy=socks5://127.0.0.1:1080' >> /etc/yum.conf"
+  when: is_aliyun == "yes"
+
+- name: Change hostname
+  shell: "hostnamectl set-hostname {{hostname}}"
+- debug:
+    msg: "{{inventory_hostname}}:{{ansible_host}}"
+
+- name: Create user
+  user:
+    name: cloudera-scm
+    system: yes
+    comment: "Cloudera SCM User"
+    create_home: no
+    shell: "/bin/false"
+
+- name: Set env
+  shell: "grep {{cdh_bin_path}} ~/.bashrc || echo 'PATH={{cdh_bin_path}}:$PATH' >>~/.bashrc"
+
+- name: Disable swap
+  shell: "swapoff -a;sed -i '/ swap / s/^\\/\\(.*\\)$/#\\/\\1/g' /etc/fstab"
+
+- name: Copy sysctl.conf
+  copy: src=cdh-sysctl.conf dest=/etc/sysctl.d/
+
+- name: Sysctl -p
+  shell: "sysctl -p;sysctl -w net.ipv4.ip_forward=1"
+
+- name: 禁用透明大页面压缩
+  script: init.sh
+
+- name: Set cloudera-scm ulimit
+  pam_limits: domain=cloudera-scm limit_type='-' limit_item=nofile value=65535 use_max=yes
+
+- name: Set root ulimit
+  pam_limits: domain=root limit_type='-' limit_item=nofile value=65535 use_max=yes
+
+#- name: Set yum repo
+#  shell: curl --socks5 127.0.0.1:1080 http://mirrors.aliyun.com/repo/Centos-7.repo -o /etc/yum.repos.d/CentOS-Base.repo
+#  uri: url="{{item.url}}" method=GET dest="{{item.dest}}"
+#  with_items:
+#    - {url: "http://mirrors.aliyun.com/repo/Centos-7.repo", dest: "/etc/yum.repos.d/CentOS-Base.repo"}
+#    - {url: "https://archive.cloudera.com/cm5/redhat/7/x86_64/cm/cloudera-manager.repo", dest: "/etc/yum.repos.d/cloudera-manager.repo"}
+
+- name: Set cloudera-manager repo
+  template: src=cloudera-manager.repo dest=/etc/yum.repos.d/ mode=0644
+
+- name: Set /etc/hosts
+  template: src={{hosts_file}} dest=/etc/hosts mode=0644
+
+- name: 安装依赖包
+  yum: name="{{packages}}"
+  vars:
+    packages:
+      - rdate
+
+- name: Close iptables
+  shell: "systemctl stop firewalld;systemctl disable firewalld; \
+          iptables -F && sudo iptables -X && sudo iptables -F -t nat && sudo iptables -X -t nat; \
+          iptables -P FORWARD ACCEPT"
+
+- name: Disabled selinux
+  shell: "setenforce 0;sed -i 's/^SELINUX=.*/SELINUX=disabled/g'  /etc/selinux/config"
+
+- name: 设置系统时区&时间同步
+  shell: "timedatectl set-timezone Asia/Shanghai; \
+          sudo timedatectl set-local-rtc 0; \
+          systemctl restart rsyslog; systemctl restart crond; \
+          rdate -s  time-b.nist.gov"
+  when: is_aliyun != 'yes'
+
+#- name: 离线手设时间
+#  shell: "date -s '{{custom_date}}'"
+
+- name: mkdir directory for cdh
+  file: path={{item.path}} mode={{item.mode}} state=directory
+  with_items:
+    - {path: "{{offline_pkg_path}}", mode: "0755"}
+    - {path: "{{work_dir}}", mode: "0644"}
+    - {path: "{{cdh_bin_path}}", mode: "0644"}
+    - {path: "{{parcel_repo_path}}", mode: "0644"}
+
+
+
+

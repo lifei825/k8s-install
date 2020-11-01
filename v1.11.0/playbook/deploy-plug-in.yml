@@ -1,0 +1,36 @@
+---
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "部署 coredns 插件"
+      script: deploy_coredns.sh {{k8s_pkg_path}} {{CLUSTER_DNS_SVC_IP}} {{CLUSTER_DNS_DOMAIN}}
+      register: rs
+
+    - debug: msg="{{rs.stdout_lines}}"
+
+    - name: "部署 dashboard 插件"
+      script: deploy_dashboard.sh {{k8s_pkg_path}} {{k8s_cert_path}} {{MASTER_VIP}}
+      register: rs
+
+    - debug: msg="{{rs.stdout_lines}}"
+
+# Kubernetes 1.13 Removal heapster
+# https://github.com/kubernetes/heapster/blob/master/docs/deprecation.md
+#    - name: "部署 heapster 插件"
+#      script: deploy_heapster.sh
+#      register: rs
+#
+#    - debug: msg="{{rs.stdout_lines}}"
+
+    - name: "部署 metrics-server 插件"
+      script: metrics-server.sh {{k8s_cert_path}} {{WORK_DIR}}
+      register: rs
+
+    - debug: msg="{{rs.stdout_lines}}"
+
+    - name: "部署istio"
+      script: deploy-istio.sh {{WORK_DIR}}
+      register: rs
+
+    - debug: msg="istio:{{rs.stdout_lines}}"

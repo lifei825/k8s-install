@@ -1,0 +1,32 @@
+---
+- name: download mysql repo
+  uri: url="http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm" method=GET dest="{{offline_pkg_path}}"
+
+- name: install mysql repo
+  shell: "yum -y localinstall {{offline_pkg_path}}/mysql-community-release-el7-5.noarch.rpm"
+
+- name: install mysql-server
+  yum: name="{{packages}}"
+  vars:
+    packages:
+      - mysql-server
+      - mysql-connector-java
+
+- name: copy my.cnf, init.sql
+  template: src={{item.name}} dest={{item.dest}}/
+  with_items:
+    - {name: "my.cnf", dest: "/etc"}
+    - {name: "init.sql", dest: "{{cdh_bin_path}}"}
+
+- name: restart mysql server
+  systemd: name=mysql state=restarted
+
+- name: init mysql user&db
+  shell: "mysql -uroot < {{cdh_bin_path}}/init.sql"
+
+- name: init cdh db
+  shell: "rm -f  /etc/cloudera-scm-server/db*; \
+          /usr/share/cmf/schema/scm_prepare_database.sh mysql scm scm_admin scm_admin"
+
+- name: 手动执行:
+  debug: msg="mysql_secure_installation"

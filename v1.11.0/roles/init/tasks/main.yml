@@ -1,0 +1,100 @@
+---
+- name: "If aliyun use proxy (每台执行 ssh -qTfnN -D 1080 root@{{master_ip}})"
+  shell: "grep 'proxy=socks5://127.0.0.1:1080' /etc/yum.conf || \
+          echo 'proxy=socks5://127.0.0.1:1080' >> /etc/yum.conf"
+  when: is_aliyun == "yesno"
+
+
+- name: copy ssh key
+  copy: src=~/.ssh/{{item.path}} dest=~/.ssh/ mode={{item.mode}}
+  with_items:
+    - {path: 'authorized_keys', mode: '0600'}
+    - {path: 'id_rsa', mode: '0600'}
+    - {path: 'id_rsa.pub', mode: '0644'}
+
+#- name: socks5
+#  shell: ssh -qTfnN -D 1080 root@{{master1}}
+
+#- name: Change hostname
+#  shell: "hostnamectl set-hostname {{hostname}}"
+#- debug:
+#    msg: "{{inventory_hostname}}:{{ansible_host}}"
+
+- name: Disable swap
+  shell: "swapoff -a;sed -i '/ swap / s/^\\/\\(.*\\)$/#\\/\\1/g' /etc/fstab"
+
+- name: Copy sysctl.conf
+  copy: src=k8s-sysctl.conf dest=/etc/sysctl.d/
+
+- name: Sysctl -p
+  shell: "sysctl -p;sysctl -w net.ipv4.ip_forward=1"
+
+- name: Set env
+  shell: "grep {{k8s_bin_path}} ~/.bashrc || echo 'PATH={{k8s_bin_path}}:$PATH' >>~/.bashrc"
+
+- name: 安装依赖包 1
+  yum: name="{{packages}}"
+  vars:
+    packages:
+      - epel-release
+      - rsync
+
+- name: 安装依赖包 2
+  yum: name="{{packages}}"
+  vars:
+    packages:
+      - conntrack
+      - ipvsadm
+      - ipset
+      - jq
+      - sysstat
+      - curl
+      - iptables
+      - libseccomp
+      - rdate
+      - python-rhsm-certificates
+      - python-rhsm
+      - socat
+
+- name: Close iptables
+  shell: "systemctl stop firewalld;systemctl disable firewalld; \
+          iptables -F && sudo iptables -X && sudo iptables -F -t nat && sudo iptables -X -t nat; \
+          iptables -P FORWARD ACCEPT"
+
+- name: Disabled selinux
+  shell: "setenforce 0;sed -i 's/^SELINUX=.*/SELINUX=disabled/g'  /etc/selinux/config"
+
+- name: Ensure dnsmasq installed
+  yum: list="dnsmasq"
+  register: result
+
+- name: "Close dnsmasq: service dnsmasq stop;systemctl disable dnsmasq"
+  systemd: name=dnsmasq state=stopped enabled=no
+  loop: "{{result|json_query('results[?yumstate==`installed`].yumstate')}}"
+  when: item == 'installed'
+
+- name: Load kernel module
+  shell: "modprobe ip_vs;modprobe br_netfilter"
+
+- name: 设置系统时区&时间同步
+  shell: "timedatectl set-timezone Asia/Shanghai; \
+          sudo timedatectl set-local-rtc 0; \
+          systemctl restart rsyslog; systemctl restart crond; \
+          rdate -s  time-b.nist.gov"
+  when: is_aliyun != 'yes'
+
+- name: mkdir directory for k8s
+  file: path={{item.path}} mode={{item.mode}} state=directory
+  with_items:
+    - {path: "{{k8s_bin_path}}", mode: "0755"}
+    - {path: "{{k8s_node_path}}", mode: "0644"}
+    - {path: "{{k8s_log_path}}", mode: "0644"}
+    - {path: "{{k8s_cert_path}}", mode: "0644"}
+    - {path: "{{etcd_cert_path}}", mode: "0644"}
+    - {path: "{{flannel_cert_path}}", mode: "0644"}
+    - {path: "/etc/docker", mode: "0644"}
+    - {path: "/var/lib/kubelet", mode: "0644"}
+    - {path: "/var/lib/kube-proxy", mode: "0644"}
+
+- name: copy environment.sh
+  template: src=environment.sh dest={{k8s_bin_path}} mode=0755

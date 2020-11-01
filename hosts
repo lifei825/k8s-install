@@ -1,0 +1,72 @@
+[k8s:children]
+master-manager
+master
+nodes
+etcd
+
+[k8s:vars]
+# ansible_ssh_private_key_file=~/.ssh/hadoop.pem
+ansible_ssh_pass=123
+ansible_ssh_user=root
+
+is_aliyun=no
+k8s_version=v1.13.4
+# ENCRYPTION_KEY=$(head -c 32 /dev/urandom | base64)
+ENCRYPTION_KEY="vrXhyiTIHxT6bT6xl1BATyGmFVa/RLGZrGRRoGA2ERg="
+
+docker_binary_download="https://download.docker.com/linux/static/stable/x86_64/docker-18.06.1-ce.tgz"
+
+WORK_DIR="/home/work"
+k8s_log_path="/var/log/kubernetes"
+k8s_node_path="/home/work/node"
+k8s_bin_path="/home/work/k8s/bin"
+k8s_cert_path="/home/work/k8s/cert"
+etcd_cert_path="/home/work/etcd/cert"
+flannel_cert_path="/home/work/flannel/cert"
+k8s_binaries_path="/home/work/kubernetes/server/kubernetes/server/bin"
+# 下载所需组件后同步到master1
+k8s_pkg_path="/home/work/kubernetes/"
+
+# aliyun 设不了vip 可以用master1的ip代替
+MASTER_VIP=10.0.2.254
+VIP_IF=enp0s3
+master1=10.0.2.9
+master2=10.0.2.15
+master3=10.0.2.10
+# kube-apiserver VIP 地址（HA 组件 haproxy 监听 8443 端口）
+# KUBE_APISERVER="https://{{MASTER_VIP}}:8443"
+# 服务网段，部署前路由不可达，部署后集群内路由可达(kube-proxy 和 ipvs 保证)
+SERVICE_CIDR="10.254.0.0/16"
+# Pod 网段，建议 /16 段地址，部署前路由不可达，部署后集群内路由可达(flanneld 保证)
+CLUSTER_CIDR="172.30.0.0/16"
+# 服务端口范围 (NodePort Range)
+NODE_PORT_RANGE="30000-40000"
+# kubernetes 服务 IP (一般是 SERVICE_CIDR 中第一个IP)
+CLUSTER_KUBERNETES_SVC_IP="10.254.0.1"
+# 集群 DNS 服务 IP (从 SERVICE_CIDR 中预分配)
+CLUSTER_DNS_SVC_IP="10.254.0.2"
+# 集群 DNS 域名
+CLUSTER_DNS_DOMAIN="cluster.local."
+# flanneld 网络配置前缀
+FLANNEL_ETCD_PREFIX="/kubernetes/network"
+FLANNEL_IFACE="enp0s3"
+
+[master-manager]
+master1
+
+[master]
+# 注意master1 已经被引用到palybook
+master1 ansible_port=22 ansible_host=10.0.2.9
+master2 ansible_port=22 ansible_host=10.0.2.15
+master3 ansible_port=22 ansible_host=10.0.2.10
+
+[nodes]
+master1 ansible_port=22 ansible_host=10.0.2.9
+master2 ansible_port=22 ansible_host=10.0.2.15
+master3 ansible_port=22 ansible_host=10.0.2.10
+
+[etcd]
+master1 node_ip=10.0.2.9 node_name=master1   ansible_port=22 ansible_host=10.0.2.9
+master2 node_ip=10.0.2.15 node_name=master2  ansible_port=22 ansible_host=10.0.2.15
+master3 node_ip=10.0.2.10 node_name=master3  ansible_port=22 ansible_host=10.0.2.10
+

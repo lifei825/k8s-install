@@ -1,0 +1,35 @@
+---
+- hosts: master1
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Create kube-scheduler cert/config"
+      script: create_kube_scheduler_cert.sh {{k8s_cert_path}} {{master1}} {{master2}} {{master3}} {{MASTER_VIP}}
+
+    - name: "Get kube-scheduler cert"
+      fetch: src={{k8s_cert_path}}/kube-scheduler-cert.tar.gz dest=/tmp/ flat=yes
+
+- hosts: master
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Copy kube-scheduler-cert.tar.gz"
+      copy: src=/tmp/kube-scheduler-cert.tar.gz dest={{k8s_cert_path}}/
+
+    - name: "tar zxf kube-scheduler-cert.tar.gz"
+      shell: "cd {{k8s_cert_path}}; \
+              tar zxf kube-scheduler-cert.tar.gz; \
+              mv kube-scheduler.kubeconfig {{WORK_DIR}}/k8s/; \
+              rm -f kube-scheduler-cert.tar.gz"
+
+    - name: "Create kube-scheduler.service"
+      template: src=kube-scheduler.service.template dest=/etc/systemd/system/kube-scheduler.service
+
+    - name: "start kube-scheduler.service"
+      systemd: name=kube-scheduler daemon_reload=yes state=restarted enabled=yes
+
+    - name: "查看输出的 metric"
+      shell: "curl -s http://127.0.0.1:10251/metrics |head"
+      register: rs
+
+    - debug: msg="{{rs.stdout_lines}}"

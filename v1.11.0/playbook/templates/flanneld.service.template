@@ -1,0 +1,23 @@
+[Unit]
+Description=Flanneld overlay address etcd agent
+After=network.target
+After=network-online.target
+Wants=network-online.target
+After=etcd.service
+Before=docker.service
+
+[Service]
+Type=notify
+ExecStart={{k8s_bin_path}}/flanneld \
+  -etcd-cafile={{k8s_cert_path}}/ca.pem \
+  -etcd-certfile={{flannel_cert_path}}/flanneld.pem \
+  -etcd-keyfile={{flannel_cert_path}}/flanneld-key.pem \
+  -etcd-endpoints=https://{{master1}}:2379,https://{{master2}}:2379,https://{{master3}}:2379 \
+  -etcd-prefix={{FLANNEL_ETCD_PREFIX}} \
+  -iface={{FLANNEL_IFACE}}
+ExecStartPost={{k8s_bin_path}}/mk-docker-opts.sh -k DOCKER_NETWORK_OPTIONS -d /run/flannel/docker
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+RequiredBy=docker.service

@@ -1,0 +1,25 @@
+---
+- hosts: master
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: download - http://download.oracle.com/otn-pub/java/jdk/8u181-b13/96a7b8442fe848ef90c96a2fad6ed6d1
+      debug: msg="需要手动下载"
+
+#    - name: download - http://archive.cloudera.com/cm5/cm/5/cloudera-manager-centos7-cm6.0.0_x86_64.tar.gz
+#      shell: "cd {{offline_pkg_path}} && \
+#              wget http://archive.cloudera.com/cm5/cm/5/cloudera-manager-centos7-cm6.0.0_x86_64.tar.gz"
+
+    - name: download - cdh pkg
+      uri: url="{{item.url}}" method=GET dest="{{offline_pkg_path}}"
+      with_items:
+        - {url: "https://archive.cloudera.com/cm6/6.0.0/redhat7/yum/RPMS/x86_64/cloudera-manager-agent-6.0.0-530873.el7.x86_64.rpm"}
+        - {url: "https://archive.cloudera.com/cm6/6.0.0/redhat7/yum/RPMS/x86_64/cloudera-manager-daemons-6.0.0-530873.el7.x86_64.rpm"}
+        - {url: "https://archive.cloudera.com/cm6/6.0.0/redhat7/yum/RPMS/x86_64/cloudera-manager-server-6.0.0-530873.el7.x86_64.rpm"}
+        - {url: "https://archive.cloudera.com/cm6/6.0.0/redhat7/yum/RPMS/x86_64/cloudera-manager-server-db-2-6.0.0-530873.el7.x86_64.rpm"}
+        - {url: "https://archive.cloudera.com/cm6/6.0.0/redhat7/yum/RPMS/x86_64/oracle-j2sdk1.8-1.8.0+update141-1.x86_64.rpm"}
+        - {url: "https://archive.cloudera.com/cdh6/6.0.0/parcels/CDH-6.0.0-1.cdh6.0.0.p0.537114-el7.parcel.sha256"}
+        - {url: "https://archive.cloudera.com/cdh6/6.0.0/parcels/CDH-6.0.0-1.cdh6.0.0.p0.537114-el7.parcel"}
+        - {url: "https://archive.cloudera.com/cdh6/6.0.0/parcels/manifest.json"}
+        - {url: "https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-8.0.12.tar.gz"}
+        - {url: "https://archive.cloudera.com/cm6/6.0.0/cloudera-manager-installer.bin"}

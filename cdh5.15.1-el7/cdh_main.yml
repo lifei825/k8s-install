@@ -1,0 +1,20 @@
+---
+#- import_playbook: "playbook/download_offline_package.yml"
+
+- hosts: all
+  gather_facts: no
+  remote_user: root
+  name: System initialization
+  roles:
+    - init
+
+- import_playbook: "playbook/master_install_package.yml"
+
+- import_playbook: "playbook/node_install_package.yml"
+
+- hosts: master
+  gather_facts: no
+  remote_user: root
+  name: Mysql initialization
+  roles:
+    - mysql

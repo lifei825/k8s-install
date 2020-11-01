@@ -1,0 +1,69 @@
+---
+- hosts: master
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Download & distribute etcd: https://github.com/coreos/etcd/releases/download/v3.3.9/etcd-v3.3.9-linux-amd64.tar.gz"
+      copy: src={{k8s_bin_path}}/etcd dest={{k8s_bin_path}} mode=0755
+
+    - name: "Download & distribute etcdctl"
+      copy: src={{k8s_bin_path}}/etcdctl dest={{k8s_bin_path}} mode=0755
+
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: Create etcd cert
+      script: create_etcd_cert.sh {{master1}} {{master2}} {{master3}} {{k8s_cert_path}}
+
+    - name: Get etcd cert
+      fetch: src={{k8s_cert_path}}/etcd-cert.tar.gz dest=/tmp/ flat=yes
+
+- hosts: master
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: Copy etcd cert
+      copy: src=/tmp/etcd-cert.tar.gz dest={{etcd_cert_path}}/
+
+    - name: tar zxf etcd-cert.tar.gz
+      shell: "cd {{etcd_cert_path}}; \
+              tar zxf etcd-cert.tar.gz; \
+              rm -f etcd-cert.tar.gz; \
+              rm -f {{k8s_cert_path}}/etcd* "
+
+- hosts: etcd
+  gather_facts: yes
+  remote_user: root
+  vars:
+#    IP: "{{ ansible_eth0['ipv4']['address'] }}"
+#    IP: "{{ ansible_enp0s3['ipv4']['address'] }}"
+    IP: "{{ ansible_default_ipv4['address'] }}"
+    hostname: "{{ ansible_hostname }}"
+  tasks:
+    - name: Create etcd systemd unit
+      template: src=etcd.service.template dest=/etc/systemd/system/etcd.service
+
+    - name: backup etcd data
+      shell: "cd {{WORK_DIR}}/etcd/; \
+              ([ ! -d member ] || \
+              mv member member.bak.`date +%F-%T`); \
+              mkdir -p {{WORK_DIR}}/etcd/member/{data,wal};"
+
+    - name: Start etcd server
+      systemd:
+        name: etcd
+        daemon_reload: yes
+        state: restarted
+        enabled: yes
+    - name: CHeck etcd health
+      shell: "ETCDCTL_API=3 etcdctl \
+              --endpoints=https://{{IP}}:2379 \
+              --cacert={{k8s_cert_path}}/ca.pem \
+              --cert={{etcd_cert_path}}/etcd.pem \
+              --key={{etcd_cert_path}}/etcd-key.pem \
+              endpoint health"
+      register: rs
+
+    - debug: msg="{{rs.stdout_lines}}"
+

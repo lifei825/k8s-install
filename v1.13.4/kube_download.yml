@@ -1,0 +1,56 @@
+---
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  name: System initialization
+  roles:
+    - init
+
+
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  name: download https://github.com/kubernetes/kubernetes/releases/download/{{k8s_version}}/kubernetes.tar.gz
+  tasks:
+    - shell: "cd {{WORK_DIR}}; \
+              [ -f kubernetes.tar.gz ] || \
+              wget https://github.com/kubernetes/kubernetes/releases/download/{{k8s_version}}/kubernetes.tar.gz"
+
+    # 最好手动执行
+    - name: "run get kube binaries: https://dl.k8s.io/{{k8s_version}}/kubernetes-server-linux-amd64.tar.gz"
+      shell: "cd {{WORK_DIR}}; \
+              [ -d kubernetes ] || \
+              (tar zxf kubernetes.tar.gz && \
+              export KUBERNETES_SKIP_CONFIRM=true; \
+              ./kubernetes/cluster/get-kube-binaries.sh; \
+              cd kubernetes/server; \
+              tar zxf kubernetes-server-linux-amd64.tar.gz; \
+              cd kubernetes; \
+              tar zxf kubernetes-src.tar.gz)"
+
+    - name: "download cfssl"
+      get_url: url={{item.url}} dest={{item.dest}} mode=0755
+      with_items:
+        - {url: "https://pkg.cfssl.org/R1.2/cfssl_linux-amd64", dest: "{{k8s_bin_path}}/cfssl"}
+        - {url: "https://pkg.cfssl.org/R1.2/cfssljson_linux-amd64", dest: "{{k8s_bin_path}}/cfssljson"}
+        - {url: "https://pkg.cfssl.org/R1.2/cfssl-certinfo_linux-amd64", dest: "{{k8s_bin_path}}/cfssl-certinfo"}
+
+    - name: "download etcd"
+      shell: "cd {{WORK_DIR}}; \
+              wget https://github.com/coreos/etcd/releases/download/v3.3.12/etcd-v3.3.12-linux-amd64.tar.gz; \
+              tar zxf etcd-v3.3.12-linux-amd64.tar.gz; \
+              cd etcd-v3.3.12-linux-amd64; \
+              cp etcd* {{k8s_bin_path}}; \
+              chmod +x {{k8s_bin_path}}/*"
+
+    - name: "download docker"
+      shell: "cd {{WORK_DIR}}; \
+              [ -f {{WORK_DIR}}/docker_binary.tgz ] || \
+              wget {{docker_binary_download}} -O docker_binary.tgz"
+
+    - name: "ssh skip yes/no"
+      shell: "(grep ANSIBLE_HOST_KEY_CHECKING=False /etc/profile || \
+              echo export ANSIBLE_HOST_KEY_CHECKING=False >> /etc/profile); \
+              source /etc/profile"
+
+

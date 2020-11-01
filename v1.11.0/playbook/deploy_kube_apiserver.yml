@@ -1,0 +1,44 @@
+---
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: Creaete kubernetes cert
+      script: create_kubernetes_cert.sh {{k8s_cert_path}} {{master1}} {{master2}} {{master3}} {{MASTER_VIP}} {{CLUSTER_KUBERNETES_SVC_IP}}
+
+- hosts: master
+  gather_facts: yes
+  remote_user: root
+  vars:
+    IP: "{{ ansible_eth0['ipv4']['address'] }}"
+  tasks:
+    - name: "Rsync kubernetes cert"
+      synchronize: src={{k8s_cert_path}}/ dest={{k8s_cert_path}}/
+
+    - name: "创建加密配置文件"
+      template: src=encryption-config.yaml dest={{WORK_DIR}}/k8s/
+
+    - name: "create kube-apiserver systemd unit"
+      template: src=kube-apiserver.service.template dest=/etc/systemd/system/kube-apiserver.service
+
+    - name: "start kube-apiserver"
+      systemd: name=kube-apiserver daemon_reload=yes state=restarted enabled=yes
+
+    - name: 检查集群信息
+      shell: "kubectl cluster-info; \
+              kubectl get all --all-namespaces; \
+              kubectl get componentstatuses"
+      register: rs
+
+    - debug: msg="{{rs.stdout_lines}}"
+
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "授予 kubernetes 证书访问 kubelet API 的权限"
+      shell: "kubectl create clusterrolebinding kube-apiserver:kubelet-apis --clusterrole=system:kubelet-api-admin --user kubernetes"
+
+
+
+

@@ -1,0 +1,44 @@
+---
+- hosts: nodes
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: copy master binary bin
+      copy: src={{k8s_binaries_path}}/{{item.cmd}} dest={{k8s_bin_path}}/ mode=0755
+      with_items:
+          - {cmd: "kube-apiserver"}
+          - {cmd: "kube-scheduler"}
+          - {cmd: "kube-controller-manager"}
+          - {cmd: "kubelet"}
+          - {cmd: "kube-proxy"}
+          - {cmd: "kubeadm"}
+
+- hosts: master
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: yum install keepalived haproxy
+      yum: name="{{pkg}}"
+      vars:
+        pkg:
+          - keepalived
+          - haproxy
+
+    - name: copy ha config
+      template: src={{item.src}} dest={{item.dest}}
+      with_items:
+        - {src: 'haproxy.cfg', dest: '/etc/haproxy/haproxy.cfg'}
+        - {src: 'keepalived-backup.conf', dest: '/etc/keepalived/keepalived.conf'}
+
+    - name: copy ha-master config
+      template: src={{item.src}} dest={{item.dest}}
+      with_items:
+        - {src: 'keepalived-master.conf', dest: '/etc/keepalived/keepalived.conf'}
+      when: node_name == "master1"
+
+    - name: start ha server
+      systemd: name={{item.name}} state=restarted enabled=yes
+      with_items:
+          - {name: 'haproxy'}
+          - {name: 'keepalived'}
+

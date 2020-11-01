@@ -1,0 +1,40 @@
+---
+- hosts: nodes
+  gather_facts: yes
+  remote_user: root
+  vars:
+    IP: "{{ ansible_eth0['ipv4']['address'] }}"
+    hostname: "{{ ansible_hostname }}"
+  tasks:
+    - name: "创建 kubelet bootstrap kubeconfig 文件"
+      script: create_kubelet_bootstrap_kubeconfig.sh {{k8s_cert_path}} {{hostname}} {{MASTER_VIP}} {{k8s_node_path}}
+
+    - name: "创建和分发 kubelet 参数配置文件"
+      template: src=kubelet.config.json.template dest={{k8s_node_path}}/kubelet.config.json
+
+    # ln -s /etc/docker/certs.d/registry.access.redhat.com/redhat-ca.crt /etc/rhsm/ca/
+    - name: "创建和分发 kubelet systemd unit 文件"
+      template: src=kubelet.service.template dest=/etc/systemd/system/kubelet.service
+
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "Bootstrap Token Auth 和授予权限"
+      shell: "kubectl create clusterrolebinding kubelet-bootstrap --clusterrole=system:node-bootstrapper --group=system:bootstrappers"
+
+- hosts: nodes
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "启动 kubelet 服务"
+      systemd: name=kubelet daemon_reload=yes state=restarted enabled=yes
+
+
+- hosts: master-manager
+  gather_facts: no
+  remote_user: root
+  tasks:
+    - name: "自动 approve CSR 请求"
+      script: auto_approve_CSR.sh {{WORK_DIR}}/k8s
+

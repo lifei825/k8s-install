@@ -1,0 +1,25 @@
+[cdh:children]
+master
+node
+
+
+[cdh:vars]
+cdh_version="5.14.4"
+master_ip="10.0.2.4"
+is_aliyun="yes"
+hosts_file="aliyun_hosts"
+
+offline_pkg_path=/Users/lifei/Downloads/cdh_packages/
+work_dir=/home/work/cdh
+cdh_bin_path=/home/work/cdh/bin
+parcel_repo_path=/opt/cloudera/parcel-repo
+
+custom_date='20180806 17:00:00'
+
+[master]
+master1 ansible_port=22004 ansible_host=127.0.0.1 hostname=master
+
+[node]
+node2 ansible_port=22005 ansible_host=127.0.0.1 hostname=node2
+node3 ansible_port=22015 ansible_host=127.0.0.1 hostname=node3
+
